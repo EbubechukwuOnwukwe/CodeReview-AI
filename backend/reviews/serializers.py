@@ -51,6 +51,7 @@ class ReviewSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Review
+
         fields = [
             "id",
             "repository_url",
@@ -78,3 +79,14 @@ class ReviewSerializer(serializers.ModelSerializer):
             "findings",
             "trajectories",
         ]
+
+    def validate(self, attrs):
+        repository_url = attrs.get("repository_url")
+        code = attrs.get("code")
+
+        if not repository_url and not code:
+            raise serializers.ValidationError(
+                "Either a GitHub repository URL or source code snippet is required."
+            )
+
+        return attrs

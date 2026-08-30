@@ -5,9 +5,12 @@ from rest_framework.test import APITestCase
 from .models import Review
 
 
+from unittest.mock import patch
+
 class ReviewAPITestCase(APITestCase):
 
-    def test_create_review(self):
+    @patch("reviews.views.ReviewOrchestrator.run")
+    def test_create_review(self, mock_run):
         url = reverse("review-list")
 
         data = {
@@ -43,6 +46,7 @@ class ReviewAPITestCase(APITestCase):
             review.status,
             Review.Status.PENDING,
         )
+
 
 
     def test_get_reviews(self):

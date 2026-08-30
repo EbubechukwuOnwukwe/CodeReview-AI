@@ -25,6 +25,10 @@ class ReviewOrchestrator:
             id=review_id
         )
 
+        # Clear previous trajectories and findings if retrying/re-running
+        review.trajectories.all().delete()
+        review.findings.all().delete()
+
         review.status = Review.Status.RUNNING
         review.started_at = timezone.now()
         review.save(
@@ -33,6 +37,7 @@ class ReviewOrchestrator:
                 "started_at",
             ]
         )
+
 
         try:
             requirements_analysis = (
@@ -79,7 +84,16 @@ class ReviewOrchestrator:
 
         except Exception as exc:
             review.status = Review.Status.FAILED
-            review.error_message = str(exc)
+            
+            err_str = str(exc)
+            if "429" in err_str or "rate_limit" in err_str.lower() or "resource_exhausted" in err_str.lower() or "quota" in err_str.lower():
+                review.error_message = (
+                    "Groq API rate limit reached (429 Too Many Requests). "
+                    "Please wait a few seconds and click 'Retry Review'."
+                )
+            else:
+                review.error_message = err_str
+
             review.completed_at = timezone.now()
 
             review.save(
@@ -91,6 +105,7 @@ class ReviewOrchestrator:
             )
 
             raise
+
 
     def _run_requirements_agent(self, review):
         step = 1
@@ -203,14 +218,10 @@ class ReviewOrchestrator:
             next_step += 1
 
             try:
-                verification = (
-                    self.verifier_agent.verify(
-                        code=review.code,
-                        requirements=(
-                            requirements_analysis
-                        ),
-                        finding=finding_data,
-                    )
+                verification = self.verifier_agent.verify(
+                    code=review.code,
+                    requirements=requirements_analysis,
+                    finding=finding_data,
                 )
 
                 trajectory.output_data = verification
@@ -218,56 +229,105 @@ class ReviewOrchestrator:
                 trajectory.completed_at = timezone.now()
                 trajectory.save()
 
+                # -------------------------------------------------
+                # Safely extract finding values.
+                # AI responses can contain null values.
+                # -------------------------------------------------
+
+                finding_title = (
+                    finding_data.get("message")
+                    or finding_data.get("title")
+                    or "Code Finding"
+                )
+
+                finding_title = str(finding_title)
+
+                if len(finding_title) > 255:
+                    finding_title = (
+                        finding_title[:252] + "..."
+                    )
+
+                severity = (
+                    verification.get("corrected_severity")
+                    or finding_data.get("severity")
+                    or "medium"
+                )
+
+                evidence = (
+                    finding_data.get("evidence")
+                    or finding_data.get("message")
+                    or ""
+                )
+
+                explanation = (
+                    finding_data.get("explanation")
+                    or finding_data.get("message")
+                    or ""
+                )
+
+                suggested_fix = (
+                    finding_data.get("suggestion")
+                    or finding_data.get("suggested_fix")
+                    or ""
+                )
+
+                file_path = (
+                    finding_data.get("file_path")
+                    or ""
+                )
+
+                line_number = (
+                    finding_data.get("line")
+                )
+
+                if line_number is None:
+                    line_number = finding_data.get(
+                        "line_number"
+                    )
+
+                confidence = (
+                    verification.get("confidence")
+                    if verification.get("confidence") is not None
+                    else finding_data.get("confidence")
+                )
+
+                verification_status = (
+                    verification.get(
+                        "verification_status"
+                    )
+                    or "rejected"
+                )
+
+                verification_reason = (
+                    verification.get("reason")
+                    or ""
+                )
+
+                # -------------------------------------------------
+                # Create Finding
+                # -------------------------------------------------
+
                 finding = Finding.objects.create(
                     review=review,
-                    title=finding_data["title"],
-                    severity=(
-                        verification.get(
-                            "corrected_severity",
-                            finding_data["severity"],
-                        )
-                    ),
-                    file_path=finding_data.get(
-                        "file_path",
-                        "",
-                    ),
-                    line_number=finding_data.get(
-                        "line_number"
-                    ),
-                    evidence=finding_data[
-                        "evidence"
-                    ],
-                    explanation=finding_data[
-                        "explanation"
-                    ],
-                    suggested_fix=finding_data[
-                        "suggested_fix"
-                    ],
-                    confidence=verification.get(
-                        "confidence",
-                        finding_data.get(
-                            "confidence"
-                        ),
-                    ),
-                    verification_status=(
-                        verification[
-                            "verification_status"
-                        ]
-                    ),
-                    verification_reason=(
-                        verification.get(
-                            "reason",
-                            "",
-                        )
+                    title=finding_title,
+                    severity=severity,
+                    file_path=file_path,
+                    line_number=line_number,
+                    evidence=str(evidence),
+                    explanation=str(explanation),
+                    suggested_fix=str(suggested_fix),
+                    confidence=confidence,
+                    verification_status=verification_status,
+                    verification_reason=str(
+                        verification_reason
                     ),
                 )
 
-                if (
-                    verification[
-                        "verification_status"
-                    ]
-                    == "verified"
-                ):
+                # -------------------------------------------------
+                # Only pass verified findings to Summary Agent
+                # -------------------------------------------------
+
+                if verification_status == "verified":
                     verified_findings.append(
                         {
                             "id": finding.id,
@@ -285,7 +345,7 @@ class ReviewOrchestrator:
                 raise
 
         return verified_findings, next_step
-
+        
     def _run_summary_agent(
         self,
         review,

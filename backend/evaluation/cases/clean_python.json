@@ -1,0 +1,6 @@
+{
+    "name": "Clean Python Code",
+    "language": "python",
+    "code": "def calculate_total(price, quantity):\n    return price * quantity\n\n\ntotal = calculate_total(100, 3)\nprint(total)",
+    "expected_findings": []
+}

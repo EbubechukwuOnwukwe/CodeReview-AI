@@ -1,5 +1,5 @@
 from .base import BaseAgent
-
+from .schemas import RequirementsSchema
 
 class RequirementsAgent(BaseAgent):
 

@@ -1,4 +1,4 @@
-from .gemini import GeminiService
+from .groq import GroqService
 
 
 class LLMService:
@@ -8,7 +8,7 @@ class LLMService:
     """
 
     def __init__(self):
-        self.provider = GeminiService()
+        self.provider = GroqService()
 
     def generate_structured(
         self,
@@ -18,4 +18,4 @@ class LLMService:
         return self.provider.generate_structured(
             prompt=prompt,
             response_schema=response_schema,
-        )
+        )

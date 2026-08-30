@@ -1,4 +1,5 @@
 from .base import BaseAgent
+from .schemas import SummarySchema
 
 
 class SummaryAgent(BaseAgent):
@@ -60,5 +61,5 @@ Return:
 
         return self.run(
             prompt=prompt,
-             response_schema=RequirementsSchema,
-        )
+            response_schema=SummarySchema,
+        )

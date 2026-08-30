@@ -1,0 +1,6 @@
+{
+    "name": "Basic Python Review",
+    "language": "python",
+    "code": "def greet(name):\n    print('Hello ' + name)\n\ngreet('John')",
+    "expected_findings": []
+}

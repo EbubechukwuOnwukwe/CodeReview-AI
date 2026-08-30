@@ -1,0 +1,17 @@
+{
+    "name": "Python Security Issues",
+    "language": "python",
+    "code": "password = 'admin123'\nuser_input = input('Enter expression: ')\nresult = eval(user_input)\nprint(result)",
+    "expected_findings": [
+        {
+            "issue_id": "HARDCODED_SECRET",
+            "category": "security",
+            "severity": "high"
+        },
+        {
+            "issue_id": "UNSAFE_EVAL",
+            "category": "security",
+            "severity": "high"
+        }
+    ]
+}

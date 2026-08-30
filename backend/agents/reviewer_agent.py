@@ -1,4 +1,5 @@
 from .base import BaseAgent
+from .schemas import ReviewerSchema
 
 
 class ReviewerAgent(BaseAgent):
@@ -75,6 +76,10 @@ Return:
 "explanation": "",
 "suggested_fix": "",
 "confidence": 0.0
+"category": "security|logic|bug|error_handling|performance|style",
+"message": "Clear explanation of the finding",
+"line": null,
+"suggestion": "Suggested fix or improvement"
 }}
 ]
 }}
@@ -88,5 +93,5 @@ If there are no legitimate findings, return:
 
         return self.run(
             prompt=prompt,
-             response_schema=RequirementsSchema,
+            response_schema=ReviewerSchema,
         )
