@@ -15,6 +15,11 @@ class SummaryAgent(BaseAgent):
     """
 
     MAX_FINDINGS_PER_BATCH = 4
+    MAX_SUMMARIES_PER_BATCH = 2
+
+    # =========================================================
+    # MAIN SUMMARY
+    # =========================================================
 
     def summarize(
         self,
@@ -24,7 +29,7 @@ class SummaryAgent(BaseAgent):
         """
         Produce the final human-readable summary.
 
-        Large reviews are processed in small batches so that
+        Verified findings are processed in small batches so that
         no single Groq request becomes too large.
         """
 
@@ -77,57 +82,62 @@ class SummaryAgent(BaseAgent):
             summaries=batch_summaries,
         )
 
+    # =========================================================
+    # SUMMARIZE FINDING BATCH
+    # =========================================================
+
     def _summarize_batch(
         self,
         requirements_analysis,
         verified_findings,
     ):
+
         findings_text = self._format_reviewer_results(
             verified_findings
         )
 
         system_instruction = """
-    You are the final code review summary agent.
+You are the final code review summary agent.
 
-    Analyze the supplied VERIFIED code-review findings.
+Analyze ONLY the supplied VERIFIED code-review findings.
 
-    Do not invent findings.
+Do not invent findings.
 
-    Only discuss issues supported by the supplied findings.
+Only discuss issues supported by the supplied findings.
 
-    Return valid JSON matching the supplied schema.
+Return valid JSON matching the supplied schema.
 
-    Keep the response concise.
-    """
+Keep the response concise.
+"""
 
         prompt = f"""
-    PROJECT REQUIREMENTS:
+PROJECT REQUIREMENTS:
 
-    {requirements_analysis}
+{requirements_analysis}
 
+VERIFIED REVIEW FINDINGS:
 
-    VERIFIED REVIEW FINDINGS:
+{findings_text}
 
-    {findings_text}
+TASK:
 
+Create a concise final summary of these verified findings.
 
-    TASK:
+Focus on:
 
-    Create a concise summary of these verified findings.
+- Overall code quality
+- Most important issues
+- Security concerns
+- Performance concerns
+- Maintainability concerns
+- Recommended improvements
 
-    Cover:
+Use only information supported by the findings.
 
-    1. Overall code quality
-    2. Most important issues
-    3. Security concerns
-    4. Performance concerns
-    5. Maintainability concerns
-    6. Recommended improvements
+Prioritize the most severe and important issues.
 
-    Only include information supported by the findings.
-    Prioritize important issues.
-    Do not repeat the same issue multiple times.
-    """
+Do not repeat the same issue.
+"""
 
         return self.run(
             prompt=prompt,
@@ -135,14 +145,17 @@ class SummaryAgent(BaseAgent):
             system_instruction=system_instruction,
         )
 
+    # =========================================================
+    # COMBINE SUMMARIES
+    # =========================================================
+
     def _combine_summaries(
         self,
         requirements_analysis,
         summaries,
     ):
         """
-        Combine intermediate summaries in small groups
-        so the final request never becomes unnecessarily large.
+        Combine intermediate summaries in small groups.
         """
 
         if not summaries:
@@ -153,7 +166,7 @@ class SummaryAgent(BaseAgent):
 
         batches = self._create_batches(
             summaries,
-            2,
+            self.MAX_SUMMARIES_PER_BATCH,
         )
 
         combined = []
@@ -173,48 +186,47 @@ class SummaryAgent(BaseAgent):
             )
 
             system_instruction = """
-    You are a code review report editor.
+You are a code review report editor.
 
-    Combine the supplied intermediate summaries.
+Combine the supplied intermediate summaries.
 
-    Do not invent issues.
+Do not invent issues.
 
-    Remove duplicates.
+Remove duplicate findings.
 
-    Preserve important security, correctness,
-    performance, and maintainability issues.
+Preserve important security, correctness,
+performance, maintainability, and code-quality issues.
 
-    Return valid JSON matching the supplied schema.
+Return valid JSON matching the supplied schema.
 
-    Keep the response concise.
-    """
+Keep the response concise.
+"""
 
             prompt = f"""
-    PROJECT REQUIREMENTS:
+PROJECT REQUIREMENTS:
 
-    {requirements_analysis}
+{requirements_analysis}
 
+INTERMEDIATE SUMMARIES:
 
-    INTERMEDIATE SUMMARIES:
+{summaries_text}
 
-    {summaries_text}
+TASK:
 
+Combine these summaries into one concise
+code review summary.
 
-    TASK:
+Prioritize:
 
-    Combine these summaries into one concise
-    code review summary.
+1. Security
+2. Functional correctness
+3. Performance
+4. Maintainability
+5. Code quality
 
-    Prioritize:
-
-    1. Security
-    2. Functional correctness
-    3. Performance
-    4. Maintainability
-    5. Code quality
-
-    Only include information supported by the summaries.
-    """
+Only include information supported by the summaries.
+Do not repeat the same issue.
+"""
 
             result = self.run(
                 prompt=prompt,
@@ -222,9 +234,7 @@ class SummaryAgent(BaseAgent):
                 system_instruction=system_instruction,
             )
 
-            combined.append(
-                result
-            )
+            combined.append(result)
 
         # Recursively combine until only one remains.
         if len(combined) == 1:
@@ -235,8 +245,15 @@ class SummaryAgent(BaseAgent):
             summaries=combined,
         )
 
+    # =========================================================
+    # BATCHING
+    # =========================================================
+
     @staticmethod
-    def _create_batches(items, batch_size):
+    def _create_batches(
+        items,
+        batch_size,
+    ):
         return [
             items[index:index + batch_size]
             for index in range(
@@ -246,132 +263,150 @@ class SummaryAgent(BaseAgent):
             )
         ]
 
-@staticmethod
-def _format_reviewer_results(results):
-
-    formatted = []
-
-    for index, result in enumerate(
-        results,
-        start=1,
-    ):
-
-        if hasattr(result, "model_dump"):
-            data = result.model_dump()
-
-        elif isinstance(result, dict):
-            data = result
-
-        else:
-            data = {
-                "result": str(result)
-            }
-
-        compact = {
-            "title": data.get(
-                "title"
-            ) or data.get(
-                "message"
-            ),
-
-            "severity": data.get(
-                "severity"
-            ),
-
-            "file_path": data.get(
-                "file_path"
-            ),
-
-            "line_number": data.get(
-                "line_number"
-            ) or data.get(
-                "line"
-            ),
-
-            "evidence": data.get(
-                "evidence"
-            ),
-
-            "explanation": data.get(
-                "explanation"
-            ),
-
-            "suggested_fix": data.get(
-                "suggested_fix"
-            ) or data.get(
-                "suggestion"
-            ),
-
-            "confidence": data.get(
-                "confidence"
-            ),
-
-            "verification_status": data.get(
-                "verification_status"
-            ) or (
-                data.get(
-                    "verification",
-                    {}
-                ).get(
-                    "verification_status"
-                )
-                if isinstance(
-                    data.get("verification"),
-                    dict,
-                )
-                else None
-            ),
-
-            "verification_reason": data.get(
-                "verification_reason"
-            ) or (
-                data.get(
-                    "verification",
-                    {}
-                ).get(
-                    "reason"
-                )
-                if isinstance(
-                    data.get("verification"),
-                    dict,
-                )
-                else None
-            ),
-        }
-
-        formatted.append(
-            f"""
---- VERIFIED FINDING {index} ---
-
-Title: {compact["title"]}
-Severity: {compact["severity"]}
-File: {compact["file_path"]}
-Line: {compact["line_number"]}
-
-Evidence:
-{compact["evidence"]}
-
-Explanation:
-{compact["explanation"]}
-
-Suggested Fix:
-{compact["suggested_fix"]}
-
-Confidence:
-{compact["confidence"]}
-
-Verification:
-{compact["verification_status"]}
-
-Verification Reason:
-{compact["verification_reason"]}
-"""
-        )
-
-    return "\n".join(formatted)
+    # =========================================================
+    # FORMAT VERIFIED FINDINGS
+    # =========================================================
 
     @staticmethod
-    def _format_summaries(summaries):
+    def _format_reviewer_results(
+        results
+    ):
+
+        formatted = []
+
+        for index, result in enumerate(
+            results,
+            start=1,
+        ):
+
+            if hasattr(
+                result,
+                "model_dump",
+            ):
+
+                data = result.model_dump()
+
+            elif isinstance(
+                result,
+                dict,
+            ):
+
+                data = result
+
+            else:
+
+                data = {
+                    "result": str(result)
+                }
+
+            verification = data.get(
+                "verification",
+                {},
+            )
+
+            if not isinstance(
+                verification,
+                dict,
+            ):
+
+                verification = {}
+
+            title = (
+                data.get("title")
+                or data.get("message")
+                or "Code Finding"
+            )
+
+            severity = (
+                data.get("severity")
+                or "medium"
+            )
+
+            file_path = (
+                data.get("file_path")
+                or "Unknown"
+            )
+
+            line_number = (
+                data.get("line_number")
+                if data.get("line_number") is not None
+                else data.get("line")
+            )
+
+            evidence = (
+                data.get("evidence")
+                or ""
+            )
+
+            explanation = (
+                data.get("explanation")
+                or data.get("message")
+                or ""
+            )
+
+            suggested_fix = (
+                data.get("suggested_fix")
+                or data.get("suggestion")
+                or ""
+            )
+
+            confidence = (
+                data.get("confidence")
+            )
+
+            verification_status = (
+                data.get("verification_status")
+                or verification.get(
+                    "verification_status"
+                )
+                or "verified"
+            )
+
+            verification_reason = (
+                data.get("verification_reason")
+                or verification.get("reason")
+                or ""
+            )
+
+            formatted.append(
+                f"""
+--- VERIFIED FINDING {index} ---
+
+Title: {title}
+Severity: {severity}
+File: {file_path}
+Line: {line_number}
+
+Evidence:
+{evidence}
+
+Explanation:
+{explanation}
+
+Suggested Fix:
+{suggested_fix}
+
+Confidence:
+{confidence}
+
+Verification Status:
+{verification_status}
+
+Verification Reason:
+{verification_reason}
+"""
+            )
+
+        return "\n".join(formatted)
+
+    # =========================================================
+    # FORMAT SUMMARIES
+    # =========================================================
+
+    @staticmethod
+    def _format_summaries(
+        summaries
+    ):
 
         formatted = []
 
@@ -380,13 +415,22 @@ Verification Reason:
             start=1,
         ):
 
-            if hasattr(summary, "model_dump"):
+            if hasattr(
+                summary,
+                "model_dump",
+            ):
+
                 data = summary.model_dump()
 
-            elif isinstance(summary, dict):
+            elif isinstance(
+                summary,
+                dict,
+            ):
+
                 data = summary
 
             else:
+
                 data = {
                     "summary": str(summary)
                 }
@@ -401,10 +445,26 @@ Verification Reason:
 
         return "\n".join(formatted)
 
+    # =========================================================
+    # EMPTY SUMMARY
+    # =========================================================
+
     @staticmethod
     def _empty_summary():
 
         return SummarySchema(
-            summary="No review findings were generated.",
+            overall_summary=(
+                "No verified review findings "
+                "were generated."
+            ),
+            risk_level="low",
+            priority_actions=[],
+            severity_summary={
+                "critical": 0,
+                "high": 0,
+                "medium": 0,
+                "low": 0,
+                "info": 0,
+            },
             recommendations=[],
         )

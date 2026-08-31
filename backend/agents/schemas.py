@@ -1,6 +1,6 @@
-from typing import Optional, Any
+from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 # ============================================================
@@ -8,34 +8,32 @@ from pydantic import BaseModel, Field
 # ============================================================
 
 class SecurityRequirement(BaseModel):
-    severity: str = "medium"
-    vulnerability: str = ""
-    evidence: str = ""
+    model_config = ConfigDict(extra="forbid")
+
+    severity: str
+    vulnerability: str
+    evidence: str
 
 
 class RequirementItem(BaseModel):
-    requirement: str = ""
-    priority: Optional[str] = "medium"
+    model_config = ConfigDict(extra="forbid")
+
+    requirement: str
+    priority: str
 
 
 class RequirementsSchema(BaseModel):
-    summary: str = ""
+    model_config = ConfigDict(extra="forbid")
 
-    functional_requirements: list[str] = Field(
-        default_factory=list
-    )
+    summary: str
 
-    security_requirements: list[SecurityRequirement] = Field(
-        default_factory=list
-    )
+    functional_requirements: list[str]
 
-    constraints: list[str] = Field(
-        default_factory=list
-    )
+    security_requirements: list[SecurityRequirement]
 
-    acceptance_criteria: list[str] = Field(
-        default_factory=list
-    )
+    constraints: list[str]
+
+    acceptance_criteria: list[str]
 
 
 # ============================================================
@@ -43,24 +41,26 @@ class RequirementsSchema(BaseModel):
 # ============================================================
 
 class FindingSchema(BaseModel):
-    severity: str = "medium"
-    category: str = "code_quality"
-    message: str = ""
-    line: Optional[int] = None
-    suggestion: str = ""
+    model_config = ConfigDict(extra="forbid")
 
-    title: Optional[str] = None
-    file_path: Optional[str] = ""
-    evidence: Optional[str] = ""
-    explanation: Optional[str] = None
-    suggested_fix: Optional[str] = None
-    confidence: Optional[float] = 1.0
+    severity: str
+    category: str
+    message: str
+    line: Optional[int]
+    suggestion: str
+
+    title: Optional[str]
+    file_path: Optional[str]
+    evidence: Optional[str]
+    explanation: Optional[str]
+    suggested_fix: Optional[str]
+    confidence: Optional[float]
 
 
 class ReviewerSchema(BaseModel):
-    findings: list[FindingSchema] = Field(
-        default_factory=list
-    )
+    model_config = ConfigDict(extra="forbid")
+
+    findings: list[FindingSchema]
 
 
 # ============================================================
@@ -68,11 +68,13 @@ class ReviewerSchema(BaseModel):
 # ============================================================
 
 class VerifierSchema(BaseModel):
-    verification_status: str = "rejected"
-    confidence: float = 0.0
-    reason: str = ""
-    corrected_severity: Optional[str] = None
-    recommendation: Optional[str] = ""
+    model_config = ConfigDict(extra="forbid")
+
+    verification_status: str
+    confidence: float
+    reason: str
+    corrected_severity: Optional[str]
+    recommendation: Optional[str]
 
 
 # ============================================================
@@ -80,33 +82,33 @@ class VerifierSchema(BaseModel):
 # ============================================================
 
 class SeveritySummarySchema(BaseModel):
-    critical: int = 0
-    high: int = 0
-    medium: int = 0
-    low: int = 0
-    info: int = 0
+    model_config = ConfigDict(extra="forbid")
+
+    critical: int
+    high: int
+    medium: int
+    low: int
+    info: int
 
 
 class RecommendationSchema(BaseModel):
-    id: Optional[int] = None
-    action: str = ""
-    priority: Optional[str] = "medium"
-    reason: Optional[str] = ""
+    model_config = ConfigDict(extra="forbid")
+
+    id: Optional[int]
+    action: str
+    priority: Optional[str]
+    reason: Optional[str]
 
 
 class SummarySchema(BaseModel):
-    overall_summary: str = ""
+    model_config = ConfigDict(extra="forbid")
 
-    risk_level: str = "low"
+    overall_summary: str
 
-    priority_actions: list[str] = Field(
-        default_factory=list
-    )
+    risk_level: str
 
-    severity_summary: SeveritySummarySchema = Field(
-        default_factory=SeveritySummarySchema
-    )
+    priority_actions: list[str]
 
-    recommendations: list[RecommendationSchema] = Field(
-        default_factory=list
-    )
+    severity_summary: SeveritySummarySchema
+
+    recommendations: list[RecommendationSchema]
