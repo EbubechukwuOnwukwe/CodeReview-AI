@@ -41,13 +41,12 @@ export const ReviewResults = () => {
     }
   };
 
-  const formatErrorMessage = (msg: string | null) => {
-    if (!msg) return "An unexpected error occurred during execution.";
-    if (msg.includes("429") || msg.includes("RESOURCE_EXHAUSTED") || msg.includes("Quota exceeded")) {
-      return "GROQ AI API Rate Limit Reached (429 Resource Exhausted). The free tier API quota was briefly exceeded. Please wait a few moments and click 'Retry Review'.";
-    }
-    return msg;
-  };
+  const formatErrorMessage = () => {
+  return (
+    "We couldn't complete this code review right now. " +
+    "Please try again in a moment."
+  );
+};
 
 
   useEffect(() => {
@@ -168,7 +167,7 @@ export const ReviewResults = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2 font-bold text-base text-rose-300">
               <FiAlertTriangle className="w-5 h-5 text-rose-400" />
-              <span>Execution Error / Rate Limit Encountered</span>
+              <span>Review Couldn't Be Completed</span>
             </div>
 
             <button
@@ -183,7 +182,7 @@ export const ReviewResults = () => {
           </div>
 
           <p className="text-xs font-sans leading-relaxed text-slate-300 bg-slate-950 p-4 rounded-xl border border-rose-900/60">
-            {formatErrorMessage(review.error_message)}
+            {formatErrorMessage()}
           </p>
         </div>
       )}

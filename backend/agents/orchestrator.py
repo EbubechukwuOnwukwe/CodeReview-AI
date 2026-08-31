@@ -84,15 +84,11 @@ class ReviewOrchestrator:
 
         except Exception as exc:
             review.status = Review.Status.FAILED
-            
-            err_str = str(exc)
-            if "429" in err_str or "rate_limit" in err_str.lower() or "resource_exhausted" in err_str.lower() or "quota" in err_str.lower():
-                review.error_message = (
-                    "Groq API rate limit reached (429 Too Many Requests). "
-                    "Please wait a few seconds and click 'Retry Review'."
-                )
-            else:
-                review.error_message = err_str
+
+            review.error_message = (
+                "We couldn't complete this code review right now. "
+                "Please try again in a moment."
+            )
 
             review.completed_at = timezone.now()
 
@@ -137,7 +133,9 @@ class ReviewOrchestrator:
 
         except Exception as exc:
             trajectory.status = "failed"
-            trajectory.error_message = str(exc)
+            trajectory.error_message = (
+                "This agent could not complete its analysis."
+            )
             trajectory.completed_at = timezone.now()
             trajectory.save()
 
@@ -181,7 +179,11 @@ class ReviewOrchestrator:
 
         except Exception as exc:
             trajectory.status = "failed"
-            trajectory.error_message = str(exc)
+
+            trajectory.error_message = (
+                "The Code Reviewer Agent could not complete its analysis."
+            )
+
             trajectory.completed_at = timezone.now()
             trajectory.save()
 
@@ -338,7 +340,9 @@ class ReviewOrchestrator:
 
             except Exception as exc:
                 trajectory.status = "failed"
-                trajectory.error_message = str(exc)
+                trajectory.error_message = (
+                    "The Verification Agent could not complete its analysis."
+                )
                 trajectory.completed_at = timezone.now()
                 trajectory.save()
 
@@ -388,7 +392,9 @@ class ReviewOrchestrator:
 
         except Exception as exc:
             trajectory.status = "failed"
-            trajectory.error_message = str(exc)
+            trajectory.error_message = (
+                "The Summary Agent could not complete its analysis."
+            )
             trajectory.completed_at = timezone.now()
             trajectory.save()
 

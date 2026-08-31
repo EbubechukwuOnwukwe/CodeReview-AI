@@ -37,12 +37,19 @@ export interface SeveritySummary {
   info?: number;
 }
 
+export interface Recommendation {
+  id: number | null;
+  action: string;
+  priority: string | null;
+  reason: string | null;
+}
+
 export interface FinalReport {
   overall_summary?: string;
   risk_level?: string;
   priority_actions?: string[];
   severity_summary?: SeveritySummary;
-  recommendations?: string[];
+  recommendations?: Recommendation[];
 }
 
 export interface Review {

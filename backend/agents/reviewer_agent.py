@@ -75,7 +75,7 @@ Return:
 "evidence": "",
 "explanation": "",
 "suggested_fix": "",
-"confidence": 0.0
+"confidence": 0.0,
 "category": "security|logic|bug|error_handling|performance|style",
 "message": "Clear explanation of the finding",
 "line": null,
@@ -94,4 +94,5 @@ If there are no legitimate findings, return:
         return self.run(
             prompt=prompt,
             response_schema=ReviewerSchema,
+            system_instruction=system_instruction,
         )

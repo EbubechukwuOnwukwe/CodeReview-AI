@@ -42,12 +42,14 @@ REQUIREMENTS ANALYSIS:
 VERIFIED FINDINGS:
 {verified_findings}
 
-Return:
+Return JSON matching this structure:
 
 {{
-    "overall_summary": "",
+    "overall_summary": "Concise assessment of the code.",
     "risk_level": "critical|high|medium|low",
-    "priority_actions": [],
+    "priority_actions": [
+        "Action that should be addressed first"
+    ],
     "severity_summary": {{
         "critical": 0,
         "high": 0,
@@ -55,11 +57,19 @@ Return:
         "low": 0,
         "info": 0
     }},
-    "recommendations": []
+    "recommendations": [
+        {{
+            "id": 1,
+            "action": "Specific recommended improvement",
+            "priority": "high|medium|low",
+            "reason": "Why this improvement matters"
+        }}
+    ]
 }}
 """
 
         return self.run(
             prompt=prompt,
             response_schema=SummarySchema,
-        )
+            system_instruction=system_instruction,
+        )

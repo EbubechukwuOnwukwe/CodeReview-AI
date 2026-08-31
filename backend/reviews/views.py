@@ -158,20 +158,19 @@ class ReviewViewSet(viewsets.ModelViewSet):
             print("\n" + "=" * 80)
             print("REVIEW CREATION FAILED")
             print("=" * 80)
+
+            # Keep the real technical error in the backend console/logs.
             traceback.print_exc()
+
             print("=" * 80 + "\n")
 
-            err_str = str(exc)
-            if "429" in err_str or "rate_limit" in err_str.lower() or "resource_exhausted" in err_str.lower() or "quota" in err_str.lower():
-                formatted_msg = (
-                    "Groq API rate limit reached (429 Too Many Requests). "
-                    "Please wait a few seconds and click 'Retry Review'."
-                )
-            else:
-                formatted_msg = err_str
-
             review.status = Review.Status.FAILED
-            review.error_message = formatted_msg
+
+            review.error_message = (
+                "We couldn't complete this code review right now. "
+                "Please try again in a moment."
+            )
+
             review.save(
                 update_fields=[
                     "status",
@@ -183,7 +182,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
                 self.get_serializer(review).data,
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
     @action(detail=True, methods=["post"])
     def retry(self, request, pk=None):
         review = self.get_object()
@@ -201,18 +199,29 @@ class ReviewViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_200_OK,
             )
         except Exception as exc:
-            err_str = str(exc)
-            if "429" in err_str or "rate_limit" in err_str.lower() or "resource_exhausted" in err_str.lower() or "quota" in err_str.lower():
-                formatted_msg = (
-                    "Groq API rate limit reached (429 Too Many Requests). "
-                    "Please wait a few seconds and click 'Retry Review'."
-                )
-            else:
-                formatted_msg = err_str
+            import traceback
+
+            print("\n" + "=" * 80)
+            print("REVIEW RETRY FAILED")
+            print("=" * 80)
+
+            traceback.print_exc()
+
+            print("=" * 80 + "\n")
 
             review.status = Review.Status.FAILED
-            review.error_message = formatted_msg
-            review.save(update_fields=["status", "error_message"])
+
+            review.error_message = (
+                "We couldn't complete this code review right now. "
+                "Please try again in a moment."
+            )
+
+            review.save(
+                update_fields=[
+                    "status",
+                    "error_message",
+                ]
+            )
 
             return Response(
                 self.get_serializer(review).data,

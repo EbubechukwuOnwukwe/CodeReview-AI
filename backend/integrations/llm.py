@@ -14,8 +14,10 @@ class LLMService:
         self,
         prompt: str,
         response_schema,
+        system_instruction: str | None = None,
     ):
         return self.provider.generate_structured(
             prompt=prompt,
             response_schema=response_schema,
-        )
+            system_instruction=system_instruction,
+        )

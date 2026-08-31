@@ -1,21 +1,54 @@
-from typing import Optional
+from typing import Optional, Any
+
 from pydantic import BaseModel, Field
 
 
-class RequirementsSchema(BaseModel):
-    summary: str
-    functional_requirements: list[str] = Field(default_factory=list)
-    security_requirements: list[str] = Field(default_factory=list)
-    constraints: list[str] = Field(default_factory=list)
-    acceptance_criteria: list[str] = Field(default_factory=list)
+# ============================================================
+# REQUIREMENTS
+# ============================================================
 
+class SecurityRequirement(BaseModel):
+    severity: str = "medium"
+    vulnerability: str = ""
+    evidence: str = ""
+
+
+class RequirementItem(BaseModel):
+    requirement: str = ""
+    priority: Optional[str] = "medium"
+
+
+class RequirementsSchema(BaseModel):
+    summary: str = ""
+
+    functional_requirements: list[str] = Field(
+        default_factory=list
+    )
+
+    security_requirements: list[SecurityRequirement] = Field(
+        default_factory=list
+    )
+
+    constraints: list[str] = Field(
+        default_factory=list
+    )
+
+    acceptance_criteria: list[str] = Field(
+        default_factory=list
+    )
+
+
+# ============================================================
+# CODE REVIEW
+# ============================================================
 
 class FindingSchema(BaseModel):
-    severity: str
-    category: str
-    message: str
+    severity: str = "medium"
+    category: str = "code_quality"
+    message: str = ""
     line: Optional[int] = None
-    suggestion: str
+    suggestion: str = ""
+
     title: Optional[str] = None
     file_path: Optional[str] = ""
     evidence: Optional[str] = ""
@@ -25,17 +58,26 @@ class FindingSchema(BaseModel):
 
 
 class ReviewerSchema(BaseModel):
-    findings: list[FindingSchema] = Field(default_factory=list)
+    findings: list[FindingSchema] = Field(
+        default_factory=list
+    )
 
 
+# ============================================================
+# VERIFICATION
+# ============================================================
 
 class VerifierSchema(BaseModel):
-    verification_status: str
-    confidence: float
-    reason: str
+    verification_status: str = "rejected"
+    confidence: float = 0.0
+    reason: str = ""
     corrected_severity: Optional[str] = None
     recommendation: Optional[str] = ""
 
+
+# ============================================================
+# SUMMARY
+# ============================================================
 
 class SeveritySummarySchema(BaseModel):
     critical: int = 0
@@ -45,9 +87,26 @@ class SeveritySummarySchema(BaseModel):
     info: int = 0
 
 
+class RecommendationSchema(BaseModel):
+    id: Optional[int] = None
+    action: str = ""
+    priority: Optional[str] = "medium"
+    reason: Optional[str] = ""
+
+
 class SummarySchema(BaseModel):
-    overall_summary: str
-    risk_level: str
-    priority_actions: list[str] = Field(default_factory=list)
-    severity_summary: SeveritySummarySchema
-    recommendations: list[str] = Field(default_factory=list)
+    overall_summary: str = ""
+
+    risk_level: str = "low"
+
+    priority_actions: list[str] = Field(
+        default_factory=list
+    )
+
+    severity_summary: SeveritySummarySchema = Field(
+        default_factory=SeveritySummarySchema
+    )
+
+    recommendations: list[RecommendationSchema] = Field(
+        default_factory=list
+    )

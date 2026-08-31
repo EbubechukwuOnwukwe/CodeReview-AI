@@ -65,5 +65,6 @@ Return:
         return self.run(
             prompt=prompt,
             response_schema=VerifierSchema,
+            system_instruction=system_instruction,
         )
 

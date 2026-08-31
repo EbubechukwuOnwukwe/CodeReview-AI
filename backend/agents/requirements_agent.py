@@ -40,18 +40,35 @@ SUBMITTED CODE:
 {code}
 ```
 
-Return this JSON structure:
+Return JSON matching this structure:
 
 {{
-"summary": "Short description of what the code is expected to do.",
-"functional_requirements": [],
-"security_requirements": [],
-"constraints": [],
-"acceptance_criteria": []
+    "summary": "Short description of what the code is expected to accomplish.",
+
+    "functional_requirements": [
+        "A plain-language functional requirement"
+    ],
+
+    "security_requirements": [
+        {{
+            "severity": "critical|high|medium|low|info",
+            "vulnerability": "Security requirement or security concern",
+            "evidence": "Relevant evidence from the submitted code"
+        }}
+    ],
+
+    "constraints": [
+        "Important technical or business constraint"
+    ],
+
+    "acceptance_criteria": [
+        "Condition that must be satisfied"
+    ]
 }}
 """
 
         return self.run(
             prompt=prompt,
-             response_schema=RequirementsSchema,
-        )
+            response_schema=RequirementsSchema,
+            system_instruction=system_instruction,
+)
