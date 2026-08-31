@@ -38,7 +38,7 @@ class CodeChunker:
     # Keep the actual code portion below this.
     #
     # Prompts + system instructions + AI output consume tokens too.
-    TARGET_CODE_TOKENS = 4_000
+    TARGET_CODE_TOKENS = 2_500
 
     TARGET_CHARS = (
         TARGET_CODE_TOKENS * CHARS_PER_TOKEN

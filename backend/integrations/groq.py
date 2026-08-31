@@ -42,7 +42,7 @@ class GroqService:
     SAFE_TPM_LIMIT = int(
         os.getenv(
             "GROQ_SAFE_TPM_LIMIT",
-            "6500",
+            "7000",
         )
     )
 
@@ -50,7 +50,7 @@ class GroqService:
     CHARS_PER_TOKEN = 4
 
     # Reserve room for the model's response.
-    RESERVED_OUTPUT_TOKENS = 1000
+    RESERVED_OUTPUT_TOKENS = 700
 
     # Shared between GroqService instances in this Django process.
     _usage_lock = threading.Lock()
@@ -165,11 +165,18 @@ class GroqService:
                         }
                     )
 
+                    print(
+                        f"[GROQ RATE LIMITER] "
+                        f"Capacity available: "
+                        f"{available:,} tokens | "
+                        f"Request: "
+                        f"{required_tokens:,} tokens"
+                    )
+
                     return
 
                 if not cls._usage_window:
-                    # This should rarely happen, but prevents
-                    # an infinite loop.
+
                     return
 
                 oldest = min(
@@ -187,11 +194,13 @@ class GroqService:
                     60 - elapsed + 1,
                 )
 
-            print(
-                f"\n[GROQ RATE LIMITER] "
-                f"Waiting {wait_seconds:.0f}s "
-                f"for token capacity..."
-            )
+                print(
+                    f"[GROQ RATE LIMITER] "
+                    f"Used: {used:,}/"
+                    f"{cls.SAFE_TPM_LIMIT:,} tokens | "
+                    f"Request: {required_tokens:,} tokens | "
+                    f"Waiting: {wait_seconds:.0f}s"
+                )
 
             time.sleep(
                 wait_seconds
