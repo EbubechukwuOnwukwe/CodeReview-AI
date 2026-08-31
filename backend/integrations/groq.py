@@ -1,4 +1,5 @@
 import json
+import re
 import os
 import threading
 import time
@@ -42,15 +43,19 @@ class GroqService:
     SAFE_TPM_LIMIT = int(
         os.getenv(
             "GROQ_SAFE_TPM_LIMIT",
-            "7000",
+            "6500",
         )
     )
 
     # Approximate characters per token.
     CHARS_PER_TOKEN = 4
 
+    # Maximum number of tokens we allow the model
+    # to generate for one structured response.  
+    MAX_OUTPUT_TOKENS = 800
+
     # Reserve room for the model's response.
-    RESERVED_OUTPUT_TOKENS = 700
+    RESERVED_OUTPUT_TOKENS = 800
 
     # Shared between GroqService instances in this Django process.
     _usage_lock = threading.Lock()
@@ -206,6 +211,76 @@ class GroqService:
                 wait_seconds
             )
 
+
+    # =========================================================
+    # GROQ RATE LIMIT RETRY HELPERS
+    # =========================================================
+
+    @staticmethod
+    def _extract_retry_seconds(error):
+        """
+        Extract Groq's suggested retry time from a rate-limit
+        error message.
+
+        Example:
+
+        "Please try again in 12m50.688s"
+
+        becomes approximately:
+
+        771 seconds
+        """
+
+        message = str(error)
+
+        # -----------------------------------------------------
+        # Match:
+        #
+        # 12m50.688s
+        # -----------------------------------------------------
+
+        match = re.search(
+            r"(\d+)m([\d.]+)s",
+            message,
+            re.IGNORECASE,
+        )
+
+        if match:
+
+            minutes = int(
+                match.group(1)
+            )
+
+            seconds = float(
+                match.group(2)
+            )
+
+            return (
+                minutes * 60
+                + seconds
+            )
+
+        # -----------------------------------------------------
+        # Match:
+        #
+        # 50.688s
+        # -----------------------------------------------------
+
+        match = re.search(
+            r"([\d.]+)s",
+            message,
+            re.IGNORECASE,
+        )
+
+        if match:
+
+            return float(
+                match.group(1)
+            )
+
+        return None
+
+
     # =========================================================
     # STRUCTURED GENERATION
     # =========================================================
@@ -297,6 +372,7 @@ class GroqService:
                         response_format={
                             "type": "json_object"
                         },
+                        max_tokens=self.MAX_OUTPUT_TOKENS,
                     )
                 )
 
@@ -337,27 +413,63 @@ class GroqService:
 
                 return parsed
 
-            except RateLimitError:
+            except RateLimitError as exc:
+
+                retry_seconds = (
+                    self._extract_retry_seconds(
+                        exc
+                    )
+                )
+
+                # -------------------------------------------------
+                # Groq has explicitly told us when the token
+                # bucket should have enough capacity again.
+                # -------------------------------------------------
+
+                if retry_seconds is not None:
+
+                    wait_seconds = (
+                        int(
+                            retry_seconds
+                        )
+                        + 2
+                    )
+
+                else:
+
+                    # Fallback if Groq does not provide
+                    # a retry duration.
+                    wait_seconds = (
+                        (attempt + 1) * 15
+                    )
 
                 if (
                     attempt
                     < max_retries - 1
                 ):
 
-                    sleep_time = (
-                        (attempt + 1) * 10
+                    print(
+                        "\n"
+                        "[GROQ] Rate limit received."
                     )
 
                     print(
-                        "[GROQ] Rate limit received. "
-                        f"Waiting {sleep_time}s..."
+                        "[GROQ] Waiting "
+                        f"{wait_seconds}s "
+                        "before retrying..."
                     )
 
                     time.sleep(
-                        sleep_time
+                        wait_seconds
                     )
 
                     continue
+
+                print(
+                    "\n"
+                    "[GROQ] Rate limit persisted "
+                    "after maximum retries."
+                )
 
                 raise
 
