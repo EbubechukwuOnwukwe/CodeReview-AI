@@ -1,6 +1,7 @@
 from .base import BaseAgent
 from .schemas import RequirementsSchema
 
+
 class RequirementsAgent(BaseAgent):
 
     def __init__(self):
@@ -8,7 +9,13 @@ class RequirementsAgent(BaseAgent):
             name="Requirements Agent"
         )
 
-    def analyze(self, code, requirements):
+    def analyze(
+        self,
+        code,
+        requirements,
+        chunk_label="Submitted Code",
+    ):
+
         system_instruction = """
 You are the Requirements Analysis Agent
 for an AI-powered code review system.
@@ -26,16 +33,22 @@ Extract:
 4. Important constraints
 5. Acceptance criteria
 
+Only use information present in the requirements
+and supplied code.
+
 Return ONLY valid JSON.
 """
 
         prompt = f"""
-Analyze the following software requirements.
+Analyze this code segment in the context
+of the user's requirements.
 
 USER REQUIREMENTS:
 {requirements}
 
-SUBMITTED CODE:
+CODE SEGMENT:
+{chunk_label}
+
 ```text
 {code}
 ```
@@ -43,27 +56,28 @@ SUBMITTED CODE:
 Return JSON matching this structure:
 
 {{
-    "summary": "Short description of what the code is expected to accomplish.",
+"summary": "Short description of what this code is expected to accomplish.",
 
-    "functional_requirements": [
-        "A plain-language functional requirement"
-    ],
+"functional_requirements": [
+    "A plain-language functional requirement"
+],
 
-    "security_requirements": [
-        {{
-            "severity": "critical|high|medium|low|info",
-            "vulnerability": "Security requirement or security concern",
-            "evidence": "Relevant evidence from the submitted code"
-        }}
-    ],
+"security_requirements": [
+    {{
+        "severity": "critical|high|medium|low|info",
+        "vulnerability": "Security requirement or security concern",
+        "evidence": "Relevant evidence from the supplied code"
+    }}
+],
 
-    "constraints": [
-        "Important technical or business constraint"
-    ],
+"constraints": [
+    "Important technical or business constraint"
+],
 
-    "acceptance_criteria": [
-        "Condition that must be satisfied"
-    ]
+"acceptance_criteria": [
+    "Condition that must be satisfied"
+]
+
 }}
 """
 
@@ -71,4 +85,4 @@ Return JSON matching this structure:
             prompt=prompt,
             response_schema=RequirementsSchema,
             system_instruction=system_instruction,
-)
+        )

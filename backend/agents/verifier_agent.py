@@ -14,7 +14,9 @@ class VerificationAgent(BaseAgent):
         code,
         requirements,
         finding,
+        chunk_label="Relevant Code",
     ):
+
         system_instruction = """
 You are the Verification Agent for an
 AI-powered code review system.
@@ -34,6 +36,8 @@ Determine:
 Reject findings that are unsupported,
 incorrect, or based on assumptions.
 
+Only use the supplied code.
+
 Return ONLY valid JSON.
 """
 
@@ -43,10 +47,12 @@ Verify this code-review finding.
 REQUIREMENTS:
 {requirements}
 
-CODE:
+CODE LOCATION:
+{chunk_label}
+
+RELEVANT CODE:
 ```text
 {code}
-```
 
 FINDING:
 {finding}
@@ -67,4 +73,3 @@ Return:
             response_schema=VerifierSchema,
             system_instruction=system_instruction,
         )
-

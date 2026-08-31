@@ -13,13 +13,15 @@ class ReviewerAgent(BaseAgent):
         self,
         code,
         requirements_analysis,
+        chunk_label="Submitted Code",
     ):
+
         system_instruction = """
 You are the Code Reviewer Agent in an
 AI-powered software code review system.
 
 Your job is to identify real, actionable problems
-in the submitted code.
+in the supplied code segment.
 
 Look for:
 
@@ -33,6 +35,7 @@ Look for:
 - Data validation problems
 - Dangerous coding practices
 - Important edge cases
+- Performance problems
 
 Do not invent vulnerabilities.
 
@@ -53,7 +56,10 @@ Return ONLY valid JSON.
 """
 
         prompt = f"""
-Review the following code.
+Review this code segment.
+
+CODE LOCATION:
+{chunk_label}
 
 REQUIREMENTS ANALYSIS:
 {requirements_analysis}
@@ -61,7 +67,6 @@ REQUIREMENTS ANALYSIS:
 CODE:
 ```text
 {code}
-```
 
 Return:
 

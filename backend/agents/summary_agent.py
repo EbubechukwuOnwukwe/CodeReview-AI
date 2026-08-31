@@ -1,3 +1,5 @@
+import json
+
 from .base import BaseAgent
 from .schemas import SummarySchema
 
@@ -14,6 +16,7 @@ class SummaryAgent(BaseAgent):
         requirements_analysis,
         verified_findings,
     ):
+
         system_instruction = """
 You are the Summary Agent in an AI-powered
 code review system.
@@ -33,6 +36,48 @@ The report should help a developer understand:
 Return ONLY valid JSON.
 """
 
+        schema_example = {
+            "overall_summary": (
+                "Concise assessment of the code."
+            ),
+
+            "risk_level": (
+                "critical|high|medium|low"
+            ),
+
+            "priority_actions": [
+                "Action that should be addressed first"
+            ],
+
+            "severity_summary": {
+                "critical": 0,
+                "high": 0,
+                "medium": 0,
+                "low": 0,
+                "info": 0,
+            },
+
+            "recommendations": [
+                {
+                    "id": 1,
+                    "action": (
+                        "Specific recommended improvement"
+                    ),
+                    "priority": (
+                        "high|medium|low"
+                    ),
+                    "reason": (
+                        "Why this improvement matters"
+                    ),
+                }
+            ],
+        }
+
+        schema_json = json.dumps(
+            schema_example,
+            indent=2,
+        )
+
         prompt = f"""
 Create the final code review report.
 
@@ -42,30 +87,9 @@ REQUIREMENTS ANALYSIS:
 VERIFIED FINDINGS:
 {verified_findings}
 
-Return JSON matching this structure:
+Return ONLY valid JSON matching this structure:
 
-{{
-    "overall_summary": "Concise assessment of the code.",
-    "risk_level": "critical|high|medium|low",
-    "priority_actions": [
-        "Action that should be addressed first"
-    ],
-    "severity_summary": {{
-        "critical": 0,
-        "high": 0,
-        "medium": 0,
-        "low": 0,
-        "info": 0
-    }},
-    "recommendations": [
-        {{
-            "id": 1,
-            "action": "Specific recommended improvement",
-            "priority": "high|medium|low",
-            "reason": "Why this improvement matters"
-        }}
-    ]
-}}
+{schema_json}
 """
 
         return self.run(
