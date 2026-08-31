@@ -36,8 +36,6 @@ class AgentTrajectorySerializer(serializers.ModelSerializer):
             "completed_at",
             "error_message",
         ]
-
-
 class ReviewSerializer(serializers.ModelSerializer):
     findings = FindingSerializer(
         many=True,
@@ -80,6 +78,26 @@ class ReviewSerializer(serializers.ModelSerializer):
             "trajectories",
         ]
 
+        extra_kwargs = {
+            "repository_url": {
+                "required": False,
+                "allow_blank": True,
+                "allow_null": True,
+            },
+            "code": {
+                "required": False,
+                "allow_blank": True,
+            },
+            "requirements": {
+                "required": False,
+                "allow_blank": True,
+            },
+            "language": {
+                "required": False,
+                "allow_blank": True,
+            },
+        }
+
     def validate(self, attrs):
         repository_url = attrs.get("repository_url")
         code = attrs.get("code")
@@ -89,4 +107,4 @@ class ReviewSerializer(serializers.ModelSerializer):
                 "Either a GitHub repository URL or source code snippet is required."
             )
 
-        return attrs
+        return attrs
