@@ -1,11 +1,11 @@
 from typing import Optional
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict
 
 
-# ============================================================
+# =========================================================
 # REQUIREMENTS
-# ============================================================
+# =========================================================
 
 class SecurityRequirement(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -13,13 +13,6 @@ class SecurityRequirement(BaseModel):
     severity: str
     vulnerability: str
     evidence: str
-
-
-class RequirementItem(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    requirement: str
-    priority: str
 
 
 class RequirementsSchema(BaseModel):
@@ -36,25 +29,26 @@ class RequirementsSchema(BaseModel):
     acceptance_criteria: list[str]
 
 
-# ============================================================
+# =========================================================
 # CODE REVIEW
-# ============================================================
+# =========================================================
 
 class FindingSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    title: str
     severity: str
     category: str
-    message: str
-    line: Optional[int]
-    suggestion: str
+    file_path: str
+    line_number: int | None
+    evidence: str
+    explanation: str
+    suggested_fix: str
+    confidence: float
 
-    title: Optional[str]
-    file_path: Optional[str]
-    evidence: Optional[str]
-    explanation: Optional[str]
-    suggested_fix: Optional[str]
-    confidence: Optional[float]
+    message: str
+    line: int | None
+    suggestion: str
 
 
 class ReviewerSchema(BaseModel):
@@ -63,9 +57,9 @@ class ReviewerSchema(BaseModel):
     findings: list[FindingSchema]
 
 
-# ============================================================
+# =========================================================
 # VERIFICATION
-# ============================================================
+# =========================================================
 
 class VerifierSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -73,13 +67,13 @@ class VerifierSchema(BaseModel):
     verification_status: str
     confidence: float
     reason: str
-    corrected_severity: Optional[str]
-    recommendation: Optional[str]
+    corrected_severity: str | None
+    recommendation: str | None
 
 
-# ============================================================
+# =========================================================
 # SUMMARY
-# ============================================================
+# =========================================================
 
 class SeveritySummarySchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -94,21 +88,17 @@ class SeveritySummarySchema(BaseModel):
 class RecommendationSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    id: Optional[int]
+    id: int | None
     action: str
-    priority: Optional[str]
-    reason: Optional[str]
+    priority: str | None
+    reason: str | None
 
 
 class SummarySchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     overall_summary: str
-
     risk_level: str
-
     priority_actions: list[str]
-
     severity_summary: SeveritySummarySchema
-
     recommendations: list[RecommendationSchema]

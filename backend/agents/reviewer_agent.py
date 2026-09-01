@@ -43,14 +43,21 @@ Only report a finding when there is evidence
 in the supplied code.
 
 For every finding provide:
+
 - title
 - severity
-- file_path if known
-- line_number if known
+- category
+- file_path
+- line
 - evidence
 - explanation
 - suggested_fix
 - confidence
+
+If the exact line is unknown, use null.
+
+Do not create duplicate fields.
+Do not repeat the same issue in different wording.
 
 Return ONLY valid JSON.
 """
@@ -65,34 +72,32 @@ REQUIREMENTS ANALYSIS:
 {requirements_analysis}
 
 CODE:
+
 ```text
 {code}
 
 Return:
 
 {{
-"findings": [
-{{
-"title": "",
-"severity": "critical|high|medium|low|info",
-"file_path": "",
-"line_number": null,
-"evidence": "",
-"explanation": "",
-"suggested_fix": "",
-"confidence": 0.0,
-"category": "security|logic|bug|error_handling|performance|style",
-"message": "Clear explanation of the finding",
-"line": null,
-"suggestion": "Suggested fix or improvement"
-}}
-]
+    "findings": [
+        {{
+            "title": "",
+            "severity": "critical|high|medium|low|info",
+            "category": "security|correctness|performance|reliability|maintainability|code_quality|requirements",
+            "file_path": "",
+            "line": null,
+            "evidence": "",
+            "explanation": "",
+            "suggested_fix": "",
+            "confidence": 0.0
+        }}
+    ]
 }}
 
 If there are no legitimate findings, return:
 
 {{
-"findings": []
+    "findings": []
 }}
 """
 

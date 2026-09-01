@@ -45,13 +45,13 @@ class GroqService:
     )
 
     # Approximate characters per token.
-    CHARS_PER_TOKEN = 4
+    CHARS_PER_TOKEN = 3
 
     # Maximum response size.
     MAX_OUTPUT_TOKENS = int(
         os.getenv(
             "GROQ_MAX_OUTPUT_TOKENS",
-            "1200",
+            "600",
         )
     )
 
@@ -60,7 +60,7 @@ class GroqService:
     RESERVED_OUTPUT_TOKENS = int(
         os.getenv(
             "GROQ_RESERVED_OUTPUT_TOKENS",
-            "1200",
+            "800",
         )
     )
 
@@ -361,7 +361,7 @@ class GroqService:
         prompt: str,
         response_schema,
         system_instruction: str | None = None,
-        max_retries: int = 4,
+        max_retries: int = 2,
     ):
 
         # -----------------------------------------------------
@@ -440,13 +440,6 @@ class GroqService:
                 "smaller chunks."
             )
 
-        # -----------------------------------------------------
-        # Reserve TPM capacity.
-        # -----------------------------------------------------
-
-        self._wait_for_capacity(
-            estimated_tokens
-        )
 
         # =====================================================
         # REQUEST LOOP
@@ -457,6 +450,14 @@ class GroqService:
         ):
 
             try:
+
+                # -------------------------------------
+                # Reserve TPM capacity.
+                # -------------------------------------
+
+                self._wait_for_capacity(
+                    estimated_tokens
+                )
 
                 print(
                     f"[GROQ] Sending request "
@@ -596,6 +597,18 @@ class GroqService:
             # =====================================================
 
             except RateLimitError as exc:
+
+                error_message = str(exc).lower()
+
+                if (
+                    "tokens per day" in error_message or "tpd" in error_message
+                ):
+
+                    print(
+                        "[GROQ] Daily token limit reached. "
+                        "No retry will be attempted."
+                    )
+                    raise
 
                 retry_seconds = (
                     self._extract_retry_seconds(

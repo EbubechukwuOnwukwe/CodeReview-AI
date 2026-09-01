@@ -219,33 +219,21 @@ class ReviewOrchestrator:
 
         try:
 
-            analyses = []
-
-            for chunk in chunks:
-
-                result = (
-                    self.requirements_agent.analyze(
-                        code=chunk.content,
-                        requirements=review.requirements,
-                        chunk_label=chunk.label,
-                    )
-                )
-
-                analyses.append(result)
-
-            merged = (
-                self._merge_requirements(
-                    analyses
-                )
+            # Requirements are project-level.
+            # Analyze them ONCE instead of once per code chunk.
+            result = self.requirements_agent.analyze(
+                code="",
+                requirements=review.requirements,
+                chunk_label="Project Requirements",
             )
 
-            trajectory.output_data = merged
+            trajectory.output_data = result
             trajectory.status = "completed"
             trajectory.completed_at = timezone.now()
 
             trajectory.save()
 
-            return merged
+            return result
 
         except Exception:
 
@@ -261,7 +249,6 @@ class ReviewOrchestrator:
             trajectory.save()
 
             raise
-
     # =========================================================
     # REVIEWER AGENT
     # =========================================================

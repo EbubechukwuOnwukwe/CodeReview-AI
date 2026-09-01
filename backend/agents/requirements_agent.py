@@ -13,76 +13,54 @@ class RequirementsAgent(BaseAgent):
         self,
         code,
         requirements,
-        chunk_label="Submitted Code",
+        chunk_label="Project Requirements",
     ):
 
         system_instruction = """
-You are the Requirements Analysis Agent
-for an AI-powered code review system.
+    You are the Requirements Analysis Agent
+    for an AI-powered code review system.
 
-Your job is to analyze the user's requirements
-and determine what the submitted code is expected
-to accomplish.
+    Your job is to analyze the USER REQUIREMENTS
+    and convert them into a concise structured specification
+    that another AI agent can use when reviewing code.
 
-Do not review the code for bugs yet.
+    Do NOT review the implementation.
 
-Extract:
-1. Functional requirements
-2. Security requirements
-3. Input/output expectations
-4. Important constraints
-5. Acceptance criteria
+    Do NOT invent requirements.
 
-Only use information present in the requirements
-and supplied code.
+    Extract only requirements explicitly supported
+    by the user's requirements.
 
-Return ONLY valid JSON.
-"""
+    If the user did not provide a particular type of
+    requirement, return an empty array for that field.
+
+    Return ONLY valid JSON matching the supplied schema.
+    """
 
         prompt = f"""
-Analyze this code segment in the context
-of the user's requirements.
+    Analyze the following software requirements.
 
-USER REQUIREMENTS:
-{requirements}
+    USER REQUIREMENTS:
+    {requirements}
 
-CODE SEGMENT:
-{chunk_label}
+    Extract:
 
-```text
-{code}
-```
+    1. Functional requirements
+    2. Security requirements
+    3. Constraints
+    4. Acceptance criteria
 
-Return JSON matching this structure:
+    If a category is not specified by the user,
+    return an empty array.
 
-{{
-"summary": "Short description of what this code is expected to accomplish.",
+    Keep each item concise.
 
-"functional_requirements": [
-    "A plain-language functional requirement"
-],
-
-"security_requirements": [
-    {{
-        "severity": "critical|high|medium|low|info",
-        "vulnerability": "Security requirement or security concern",
-        "evidence": "Relevant evidence from the supplied code"
-    }}
-],
-
-"constraints": [
-    "Important technical or business constraint"
-],
-
-"acceptance_criteria": [
-    "Condition that must be satisfied"
-]
-
-}}
-"""
+    Return the required JSON object.
+    """
 
         return self.run(
             prompt=prompt,
             response_schema=RequirementsSchema,
             system_instruction=system_instruction,
+            max_retries=2,
         )

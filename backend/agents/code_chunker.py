@@ -29,19 +29,39 @@ class CodeChunker:
     source code that doesn't have file markers.
     """
 
+    # ---------------------------------------------------------
+    # TOKEN ESTIMATION
+    # ---------------------------------------------------------
+
     # Approximate characters per token.
     #
-    # This is intentionally conservative. We don't want to
-    # approach Groq's 8,000 TPM limit too closely.
+    # This is deliberately conservative.
     CHARS_PER_TOKEN = 4
 
-    # Keep the actual code portion below this.
+    # ---------------------------------------------------------
+    # CHUNK SIZE
+    # ---------------------------------------------------------
+
+    # IMPORTANT:
     #
-    # Prompts + system instructions + AI output consume tokens too.
-    TARGET_CODE_TOKENS = 2_500
+    # This is the CODE budget only.
+    #
+    # The actual Groq request also contains:
+    #
+    # - system instructions
+    # - requirements analysis
+    # - schema instructions
+    # - JSON instructions
+    # - response tokens
+    # - reasoning tokens
+    #
+    # Therefore we should NOT use most of the 6,500 TPM
+    # budget for code alone.
+    TARGET_CODE_TOKENS = 1_500
 
     TARGET_CHARS = (
-        TARGET_CODE_TOKENS * CHARS_PER_TOKEN
+        TARGET_CODE_TOKENS
+        * CHARS_PER_TOKEN
     )
 
     # Avoid producing extremely tiny chunks.
@@ -54,7 +74,12 @@ class CodeChunker:
         re.MULTILINE,
     )
 
+    # =========================================================
+    # PUBLIC API
+    # =========================================================
+
     def chunk(self, code: str):
+
         if not code or not code.strip():
             return []
 
@@ -68,13 +93,16 @@ class CodeChunker:
             file_path="",
         )
 
-    # ---------------------------------------------------------
+    # =========================================================
     # FILE EXTRACTION
-    # ---------------------------------------------------------
+    # =========================================================
 
     def _extract_files(self, code):
+
         matches = list(
-            self.FILE_SEPARATOR_PATTERN.finditer(code)
+            self.FILE_SEPARATOR_PATTERN.finditer(
+                code
+            )
         )
 
         if not matches:
@@ -84,13 +112,20 @@ class CodeChunker:
 
         for index, match in enumerate(matches):
 
-            file_path = match.group(1).strip()
+            file_path = (
+                match.group(1).strip()
+            )
 
             content_start = match.end()
 
             if index + 1 < len(matches):
-                content_end = matches[index + 1].start()
+
+                content_end = (
+                    matches[index + 1].start()
+                )
+
             else:
+
                 content_end = len(code)
 
             content = code[
@@ -109,11 +144,12 @@ class CodeChunker:
 
         return files
 
-    # ---------------------------------------------------------
+    # =========================================================
     # FILE-BASED CHUNKING
-    # ---------------------------------------------------------
+    # =========================================================
 
     def _chunk_files(self, files):
+
         chunks = []
 
         current_content = []
@@ -121,8 +157,13 @@ class CodeChunker:
 
         for file_data in files:
 
-            file_path = file_data["file_path"]
-            content = file_data["content"]
+            file_path = file_data[
+                "file_path"
+            ]
+
+            content = file_data[
+                "content"
+            ]
 
             formatted_file = (
                 f"FILE: {file_path}\n"
@@ -130,16 +171,21 @@ class CodeChunker:
                 f"{content}\n"
             )
 
-            file_size = len(formatted_file)
+            file_size = len(
+                formatted_file
+            )
 
-            # If the file itself fits into the current chunk,
-            # add it.
+            # -------------------------------------------------
+            # File fits inside current chunk.
+            # -------------------------------------------------
+
             if (
                 current_content
                 and
                 current_size + file_size
                 > self.TARGET_CHARS
             ):
+
                 chunks.append(
                     self._create_chunk(
                         chunks,
@@ -150,11 +196,18 @@ class CodeChunker:
                 current_content = []
                 current_size = 0
 
-            # If a single file is larger than the target,
-            # split the file itself.
-            if file_size > self.TARGET_CHARS:
+            # -------------------------------------------------
+            # Single file is larger than target.
+            # Split the file itself.
+            # -------------------------------------------------
+
+            if (
+                file_size
+                > self.TARGET_CHARS
+            ):
 
                 if current_content:
+
                     chunks.append(
                         self._create_chunk(
                             chunks,
@@ -169,13 +222,21 @@ class CodeChunker:
                     self._chunk_plain_code(
                         code=content,
                         file_path=file_path,
-                        existing_count=len(chunks),
+                        existing_count=len(
+                            chunks
+                        ),
                     )
                 )
 
-                chunks.extend(file_chunks)
+                chunks.extend(
+                    file_chunks
+                )
 
                 continue
+
+            # -------------------------------------------------
+            # Add file to current chunk.
+            # -------------------------------------------------
 
             current_content.append(
                 formatted_file
@@ -183,7 +244,12 @@ class CodeChunker:
 
             current_size += file_size
 
+        # -----------------------------------------------------
+        # Flush remaining content.
+        # -----------------------------------------------------
+
         if current_content:
+
             chunks.append(
                 self._create_chunk(
                     chunks,
@@ -193,9 +259,9 @@ class CodeChunker:
 
         return chunks
 
-    # ---------------------------------------------------------
+    # =========================================================
     # PLAIN CODE / LARGE FILE CHUNKING
-    # ---------------------------------------------------------
+    # =========================================================
 
     def _chunk_plain_code(
         self,
@@ -203,6 +269,7 @@ class CodeChunker:
         file_path="",
         existing_count=0,
     ):
+
         lines = code.splitlines(
             keepends=True
         )
@@ -216,12 +283,17 @@ class CodeChunker:
 
             line_size = len(line)
 
+            # -------------------------------------------------
+            # Current chunk would exceed target.
+            # -------------------------------------------------
+
             if (
                 current_lines
                 and
                 current_size + line_size
                 > self.TARGET_CHARS
             ):
+
                 chunks.append(
                     CodeChunk(
                         index=(
@@ -240,10 +312,18 @@ class CodeChunker:
                 current_lines = []
                 current_size = 0
 
-            current_lines.append(line)
+            current_lines.append(
+                line
+            )
+
             current_size += line_size
 
+        # -----------------------------------------------------
+        # Remaining lines.
+        # -----------------------------------------------------
+
         if current_lines:
+
             chunks.append(
                 CodeChunk(
                     index=(
@@ -261,18 +341,22 @@ class CodeChunker:
 
         return chunks
 
-    # ---------------------------------------------------------
+    # =========================================================
     # HELPERS
-    # ---------------------------------------------------------
+    # =========================================================
 
     def _format_chunk(
         self,
         lines,
         file_path,
     ):
-        content = "".join(lines).strip()
+
+        content = "".join(
+            lines
+        ).strip()
 
         if file_path:
+
             return (
                 f"FILE: {file_path}\n"
                 f"{'-' * 60}\n"
@@ -286,6 +370,7 @@ class CodeChunker:
         chunks,
         content_parts,
     ):
+
         content = "\n".join(
             content_parts
         ).strip()
