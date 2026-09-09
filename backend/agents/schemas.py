@@ -46,10 +46,6 @@ class FindingSchema(BaseModel):
     suggested_fix: str
     confidence: float
 
-    message: str
-    line: int | None
-    suggestion: str
-
 
 class ReviewerSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")

@@ -62,5 +62,4 @@ class RequirementsAgent(BaseAgent):
             prompt=prompt,
             response_schema=RequirementsSchema,
             system_instruction=system_instruction,
-            max_retries=2,
         )

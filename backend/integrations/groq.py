@@ -51,7 +51,7 @@ class GroqService:
     MAX_OUTPUT_TOKENS = int(
         os.getenv(
             "GROQ_MAX_OUTPUT_TOKENS",
-            "600",
+            "1200",
         )
     )
 

@@ -48,7 +48,7 @@ For every finding provide:
 - severity
 - category
 - file_path
-- line
+- line_number
 - evidence
 - explanation
 - suggested_fix
@@ -85,7 +85,7 @@ Return:
             "severity": "critical|high|medium|low|info",
             "category": "security|correctness|performance|reliability|maintainability|code_quality|requirements",
             "file_path": "",
-            "line": null,
+            "line_number": null,
             "evidence": "",
             "explanation": "",
             "suggested_fix": "",

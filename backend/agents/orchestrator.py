@@ -431,8 +431,7 @@ class ReviewOrchestrator:
                 # -------------------------------------------------
 
                 finding_title = (
-                    finding_data.get("message")
-                    or finding_data.get("title")
+                    finding_data.get("title")
                     or "Code Finding"
                 )
 
@@ -471,17 +470,11 @@ class ReviewOrchestrator:
                     finding_data.get(
                         "explanation"
                     )
-                    or finding_data.get(
-                        "message"
-                    )
                     or ""
                 )
 
                 suggested_fix = (
                     finding_data.get(
-                        "suggestion"
-                    )
-                    or finding_data.get(
                         "suggested_fix"
                     )
                     or ""
@@ -496,17 +489,9 @@ class ReviewOrchestrator:
 
                 line_number = (
                     finding_data.get(
-                        "line"
+                        "line_number"
                     )
                 )
-
-                if line_number is None:
-
-                    line_number = (
-                        finding_data.get(
-                            "line_number"
-                        )
-                    )
 
                 confidence = (
                     verification.get(
