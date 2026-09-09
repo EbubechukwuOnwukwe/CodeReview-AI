@@ -246,6 +246,7 @@ ALLOWED_HOSTS=127.0.0.1,localhost
 GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 GROQ_MODEL=openai/gpt-oss-120b
 
+GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 ---
