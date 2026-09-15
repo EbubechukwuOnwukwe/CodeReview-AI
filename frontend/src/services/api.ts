@@ -5,7 +5,7 @@ import type {
 
 
 const API_BASE_URL =
-  "http://localhost:8000/api/reviews/";
+  import.meta.env.VITE_API_URL;
 
 
 const GENERIC_REVIEW_ERROR =
@@ -17,7 +17,7 @@ export async function createReview(
 ): Promise<Review> {
 
   const response = await fetch(
-    API_BASE_URL,
+    `${API_BASE_URL}/api/reviews/`,
     {
       method: "POST",
 
@@ -58,7 +58,7 @@ export async function getReview(
 ): Promise<Review> {
 
   const response = await fetch(
-    `${API_BASE_URL}${id}/`,
+    `${`${API_BASE_URL}/api/reviews/`}${id}/`,
     {
       method: "GET",
 
@@ -83,7 +83,7 @@ export async function getReview(
 export async function getReviews(): Promise<Review[]> {
 
   const response = await fetch(
-    API_BASE_URL,
+    `${API_BASE_URL}/api/reviews/`,
     {
       method: "GET",
 
@@ -110,7 +110,7 @@ export async function retryReview(
 ): Promise<Review> {
 
   const response = await fetch(
-    `${API_BASE_URL}${id}/retry/`,
+    `${`${API_BASE_URL}/api/reviews/`}${id}/retry/`,
     {
       method: "POST",
 
