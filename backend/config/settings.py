@@ -26,14 +26,7 @@ SECRET_KEY = os.getenv(
 
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 
-ALLOWED_HOSTS = [
-    h.strip()
-    for h in os.getenv(
-        "ALLOWED_HOSTS",
-        "127.0.0.1,localhost,.onrender.com",
-    ).split(",")
-    if h.strip()
-]
+ALLOWED_HOSTS = ["*"]
 
 
 # ============================================================
@@ -227,16 +220,25 @@ REST_FRAMEWORK = {
 
 frontend_url = os.environ.get("FRONTEND_URL", "").strip().rstrip("/")
 
+CORS_ALLOW_ALL_ORIGINS = True
+
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://code-review-ai-vert.vercel.app",
 ]
-if frontend_url:
+if frontend_url and frontend_url not in CORS_ALLOWED_ORIGINS:
     CORS_ALLOWED_ORIGINS.append(frontend_url)
 
 CSRF_TRUSTED_ORIGINS = [
-    frontend_url,
-] if frontend_url else []
+    "https://code-review-ai-vert.vercel.app",
+    "https://*.vercel.app",
+    "https://*.onrender.com",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+if frontend_url and frontend_url not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(frontend_url)
 
 
 # ============================================================
