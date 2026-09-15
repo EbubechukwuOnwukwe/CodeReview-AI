@@ -26,10 +26,14 @@ SECRET_KEY = os.getenv(
 
 DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 
-ALLOWED_HOSTS = os.getenv(
-    "ALLOWED_HOSTS",
-    "127.0.0.1,localhost"
-).split(",")
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.getenv(
+        "ALLOWED_HOSTS",
+        "127.0.0.1,localhost,.onrender.com",
+    ).split(",")
+    if h.strip()
+]
 
 
 # ============================================================
@@ -221,16 +225,18 @@ REST_FRAMEWORK = {
 # CORS
 # ============================================================
 
-# React/Vite development server
+frontend_url = os.environ.get("FRONTEND_URL", "").strip().rstrip("/")
+
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    os.environ.get("FRONTEND_URL", ""),
 ]
+if frontend_url:
+    CORS_ALLOWED_ORIGINS.append(frontend_url)
 
 CSRF_TRUSTED_ORIGINS = [
-    os.environ.get("FRONTEND_URL", ""),
-]
+    frontend_url,
+] if frontend_url else []
 
 
 # ============================================================
