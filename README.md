@@ -16,6 +16,7 @@ An AI-powered code review system that uses a multi-agent pipeline to analyze sou
 - [API Reference](#api-reference)
 - [Data Models](#data-models)
 - [Tech Stack](#tech-stack)
+- [Deployment](#deployment)
 
 ---
 
@@ -28,7 +29,7 @@ CodeReview AI accepts source code (or a GitHub repository URL) together with opt
 3. **Verifier Agent** — independently verifies every finding against the source code to eliminate false positives.
 4. **Summary Agent** — synthesises all verified findings into a final structured report.
 
-Results are stored in a Django/SQLite database and exposed over a REST API consumed by a React + TypeScript frontend.
+Results are stored in a Django/PostgreSQL (SQLite in development) database and exposed over a REST API consumed by a React + TypeScript frontend.
 
 ---
 
@@ -39,7 +40,7 @@ Results are stored in a Django/SQLite database and exposed over a REST API consu
 │                        Frontend                         │
 │          React 19 + TypeScript + Vite + Tailwind        │
 │                                                         │
-│  Home ──► ReviewForm ──► ReviewResults ──► Evaluation   │
+│  Home ──► NewReview ──► ReviewResults ──► Evaluation    │
 └──────────────────────────┬──────────────────────────────┘
                            │ REST API (JSON)
                            ▼
@@ -76,7 +77,7 @@ Results are stored in a Django/SQLite database and exposed over a REST API consu
 
 ### 1 · Requirements Agent
 - Reads the user-supplied requirements text.
-- Outputs a `RequirementsSchema`: functional requirements, security requirements, constraints, and acceptance criteria.
+- Outputs a `RequirementsSchema`: `summary`, `functional_requirements`, `security_requirements`, `constraints`, and `acceptance_criteria`.
 - Runs **once** per review (not per chunk).
 
 ### 2 · Reviewer Agent
@@ -88,8 +89,8 @@ Results are stored in a Django/SQLite database and exposed over a REST API consu
 
 ### 3 · Verification Agent
 - Each finding from Step 2 is re-evaluated in isolation against the relevant code chunk.
-- Returns `verification_status` (`verified` / `rejected`), a corrected severity, and a reason.
-- Only **verified** findings are included in the final report.
+- Returns `verification_status` (`verified` / `rejected`), a corrected severity, a confidence score, and a reason.
+- Only **verified** findings are persisted and included in the final report.
 
 ### 4 · Summary Agent
 - Consumes all verified findings and the requirements analysis.
@@ -121,13 +122,28 @@ CodeReview AI/
 │   │   ├── llm.py                # LLMService abstraction layer
 │   │   └── github.py             # GitHub file fetching service
 │   │
+│   ├── prompts/
+│   │   ├── requirements.txt      # System prompt for RequirementsAgent
+│   │   ├── reviewer.txt          # System prompt for ReviewerAgent
+│   │   ├── verifier.txt          # System prompt for VerifierAgent
+│   │   └── summary.txt           # System prompt for SummaryAgent
+│   │
+│   ├── evaluation/
+│   │   ├── evaluate.py           # Evaluation runner
+│   │   ├── baseline.py           # Baseline comparisons
+│   │   ├── metrics.py            # Evaluation metrics
+│   │   └── cases/                # Test cases for evaluation
+│   │
 │   ├── reviews/
 │   │   ├── models.py             # Review, Finding, AgentTrajectory
 │   │   ├── serializers.py        # DRF serializers
 │   │   ├── views.py              # ReviewViewSet (CRUD + retry)
+│   │   ├── admin.py              # Jazzmin admin registration
 │   │   └── urls.py               # Router registration
 │   │
 │   ├── manage.py
+│   ├── gunicorn.conf.py          # Production Gunicorn config
+│   ├── build.sh                  # Render build script
 │   ├── requirements.txt
 │   └── .env                      # Secret keys and config (not committed)
 │
@@ -148,7 +164,7 @@ CodeReview AI/
     │   │   └── AgentTrajectory.tsx# Agent step-by-step trace
     │   │
     │   ├── services/
-    │   │   └── api.ts             # Axios API client
+    │   │   └── api.ts             # API client
     │   │
     │   ├── types/                 # TypeScript interfaces
     │   ├── App.tsx                # Router setup
@@ -156,6 +172,7 @@ CodeReview AI/
     │
     ├── index.html
     ├── vite.config.ts
+    ├── vercel.json                # Vercel deployment config
     └── package.json
 ```
 
@@ -226,6 +243,10 @@ Create a `.env` file inside the `backend/` directory. The following variables ar
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
+| `SECRET_KEY` | ✅ | insecure dev key | Django secret key |
+| `DEBUG` | ❌ | `True` | Set to `False` in production |
+| `ALLOWED_HOSTS` | ❌ | `127.0.0.1,localhost` | Comma-separated list of allowed hosts |
+| `DATABASE_URL` | ❌ | SQLite | Full database URL (e.g. Supabase PostgreSQL connection string) |
 | `GROQ_API_KEY` | ✅ | — | Your Groq API key |
 | `GROQ_MODEL` | ❌ | `openai/gpt-oss-120b` | Model identifier on the Groq API |
 | `GROQ_TPM_LIMIT` | ❌ | `8000` | Groq tokens-per-minute hard limit |
@@ -233,9 +254,7 @@ Create a `.env` file inside the `backend/` directory. The following variables ar
 | `GROQ_MAX_OUTPUT_TOKENS` | ❌ | `1200` | Maximum tokens per LLM response |
 | `GROQ_RESERVED_OUTPUT_TOKENS` | ❌ | `800` | Output tokens reserved when estimating request size |
 | `GITHUB_TOKEN` | ❌ | — | GitHub personal access token (for private repos or higher rate limits) |
-| `SECRET_KEY` | ✅ | insecure dev key | Django secret key |
-| `DEBUG` | ❌ | `True` | Set to `False` in production |
-| `ALLOWED_HOSTS` | ❌ | `127.0.0.1,localhost` | Comma-separated list of allowed hosts |
+| `FRONTEND_URL` | ❌ | — | Deployed frontend URL — added to CORS/CSRF allowed origins |
 
 **Example `.env`:**
 ```env
@@ -247,6 +266,11 @@ GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 GROQ_MODEL=openai/gpt-oss-120b
 
 GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Optional: production PostgreSQL via Supabase
+DATABASE_URL=postgresql://user:password@host:5432/postgres
+
+FRONTEND_URL=https://your-frontend.vercel.app
 ```
 
 ---
@@ -300,7 +324,6 @@ All endpoints are prefixed with `/api/reviews/`.
       "id": 1,
       "title": "SQL Injection Risk",
       "severity": "critical",
-      "category": "security",
       "file_path": "src/db/queries.ts",
       "line_number": 42,
       "evidence": "db.query(`SELECT * FROM users WHERE id = ${userId}`)",
@@ -308,7 +331,8 @@ All endpoints are prefixed with `/api/reviews/`.
       "suggested_fix": "Use parameterised queries: db.query('SELECT * FROM users WHERE id = $1', [userId])",
       "confidence": 0.97,
       "verification_status": "verified",
-      "verification_reason": "Confirmed: no sanitisation occurs before the query is executed."
+      "verification_reason": "Confirmed: no sanitisation occurs before the query is executed.",
+      "created_at": "2026-09-09T21:00:00Z"
     }
   ],
   "trajectories": [],
@@ -344,7 +368,6 @@ All endpoints are prefixed with `/api/reviews/`.
 | `review` | FK → Review | Parent review |
 | `title` | str | Short description of the finding |
 | `severity` | enum | `critical` · `high` · `medium` · `low` · `info` |
-| `category` | str | `security` · `correctness` · `performance` · etc. |
 | `file_path` | str | File the finding relates to |
 | `line_number` | int (nullable) | Line number if known |
 | `evidence` | text | Relevant code excerpt |
@@ -353,6 +376,7 @@ All endpoints are prefixed with `/api/reviews/`.
 | `confidence` | float | Agent confidence score (0.0 – 1.0) |
 | `verification_status` | enum | `pending` · `verified` · `rejected` |
 | `verification_reason` | text | Why the verifier accepted or rejected the finding |
+| `created_at` | datetime | When the finding was created |
 
 ### `AgentTrajectory`
 | Field | Type | Description |
@@ -363,6 +387,8 @@ All endpoints are prefixed with `/api/reviews/`.
 | `input_data` | JSON | Data sent to the agent |
 | `output_data` | JSON | Data returned by the agent |
 | `status` | enum | `started` · `completed` · `failed` |
+| `started_at` | datetime | When the step began |
+| `completed_at` | datetime | When the step finished |
 | `error_message` | text | Error detail if the step failed |
 
 ---
@@ -377,10 +403,12 @@ All endpoints are prefixed with `/api/reviews/`.
 | Django REST Framework | 3.18 | REST API |
 | django-jazzmin | 3.0 | Admin UI theme |
 | django-cors-headers | 4.9 | CORS support |
+| dj-database-url | 3.1 | Database URL parsing |
 | Pydantic | 2.13 | Schema validation for agent outputs |
-| openai (SDK) | latest | Groq API client (OpenAI-compatible) |
+| openai (SDK) | 3.6 | Groq API client (OpenAI-compatible interface) |
+| gunicorn | 26.2 | Production WSGI server |
 | python-dotenv | 1.2 | Environment variable loading |
-| SQLite | — | Default development database |
+| SQLite / PostgreSQL | — | Development / production database |
 
 ### Frontend
 | Technology | Version | Purpose |
@@ -396,9 +424,23 @@ All endpoints are prefixed with `/api/reviews/`.
 
 ---
 
+## Deployment
+
+| Service | Purpose |
+|---|---|
+| [Render](https://render.com) | Django backend hosting |
+| [Vercel](https://vercel.com) | React frontend hosting |
+| [Supabase](https://supabase.com) | Managed PostgreSQL database (production) |
+
+The `build.sh` script and `gunicorn.conf.py` are pre-configured for Render deployments. The `vercel.json` in the frontend directory handles SPA routing on Vercel.
+
+---
+
 ## Notes
 
 - **Rate Limiting:** The Groq integration includes a built-in token-per-minute (TPM) rate limiter that automatically sleeps between requests to stay within the configured `GROQ_SAFE_TPM_LIMIT`. No external queue is required.
 - **GitHub Integration:** When a `repository_url` is provided, the backend fetches source files via the GitHub API, respects per-file and total size caps, and auto-detects the dominant language from file extensions.
 - **Chunking:** The `CodeChunker` respects file boundaries and attempts to keep chunks within the safe TPM budget so that no single request exceeds the Groq API limits.
+- **Background Processing:** Reviews run in a background thread so the HTTP response is returned immediately. The frontend can poll for status updates until the review reaches `completed` or `failed`.
 - **Admin Panel:** All models are registered in Django Admin with the Jazzmin theme, enabling full CRUD access and review management at `/admin/`.
+- **Evaluation:** The `evaluation/` module contains scripts for measuring pipeline quality against a set of known test cases and comparing against a baseline.
