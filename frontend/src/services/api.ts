@@ -35,8 +35,7 @@ export async function createReview(
     .catch(() => null);
 
 
-  if (!response.ok) {
-
+  if (!response.ok && !data?.id) {
     /*
      * Do NOT expose raw backend,
      * Groq, Pydantic, or Django errors.
@@ -126,7 +125,7 @@ export async function retryReview(
     .catch(() => null);
 
 
-  if (!response.ok) {
+  if (!response.ok && !data?.id) {
     throw new Error(
       GENERIC_REVIEW_ERROR
     );

@@ -42,11 +42,11 @@ export const ReviewResults = () => {
   };
 
   const formatErrorMessage = () => {
-  return (
-    "We couldn't complete this code review right now. " +
-    "Please try again in a moment."
-  );
-};
+    return (
+      review?.error_message ||
+      "We couldn't complete this code review right now. Please try again in a moment."
+    );
+  };
 
 
   useEffect(() => {

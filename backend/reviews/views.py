@@ -166,10 +166,13 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
             review.status = Review.Status.FAILED
 
-            review.error_message = (
-                "We couldn't complete this code review right now. "
-                "Please try again in a moment."
-            )
+            if isinstance(exc, (ValueError, RuntimeError)):
+                review.error_message = str(exc)
+            else:
+                review.error_message = (
+                    "We couldn't complete this code review right now. "
+                    "Please try again in a moment."
+                )
 
             review.save(
                 update_fields=[
@@ -180,7 +183,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
             return Response(
                 self.get_serializer(review).data,
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status=status.HTTP_201_CREATED,
             )
     @action(detail=True, methods=["post"])
     def retry(self, request, pk=None):
@@ -211,10 +214,13 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
             review.status = Review.Status.FAILED
 
-            review.error_message = (
-                "We couldn't complete this code review right now. "
-                "Please try again in a moment."
-            )
+            if isinstance(exc, (ValueError, RuntimeError)):
+                review.error_message = str(exc)
+            else:
+                review.error_message = (
+                    "We couldn't complete this code review right now. "
+                    "Please try again in a moment."
+                )
 
             review.save(
                 update_fields=[
@@ -225,7 +231,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
             return Response(
                 self.get_serializer(review).data,
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status=status.HTTP_200_OK,
             )
 
 
