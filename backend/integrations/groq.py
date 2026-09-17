@@ -48,10 +48,12 @@ class GroqService:
     CHARS_PER_TOKEN = 3
 
     # Maximum response size.
+    # openai/gpt-oss-120b generates reasoning tokens before the answer,
+    # so we give it ample room to think without truncating JSON.
     MAX_OUTPUT_TOKENS = int(
         os.getenv(
             "GROQ_MAX_OUTPUT_TOKENS",
-            "1200",
+            "2500",
         )
     )
 
@@ -60,7 +62,7 @@ class GroqService:
     RESERVED_OUTPUT_TOKENS = int(
         os.getenv(
             "GROQ_RESERVED_OUTPUT_TOKENS",
-            "800",
+            "1200",
         )
     )
 

@@ -47,15 +47,15 @@ class ReviewViewSet(viewsets.ModelViewSet):
                 "practices."
             )
 
-        review = Review.objects.create(
-            repository_url=repository_url or "",
-            code=code or "",
-            requirements=requirements,
-            language=language,
-            status=Review.Status.PENDING,
-        )
-
+        review = None
         try:
+            review = Review.objects.create(
+                repository_url=repository_url or "",
+                code=code or "",
+                requirements=requirements,
+                language=language,
+                status=Review.Status.PENDING,
+            )
             if repository_url:
                 github = GitHubService()
 
@@ -164,26 +164,35 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
             print("=" * 80 + "\n")
 
-            review.status = Review.Status.FAILED
+            if review:
+                review.status = Review.Status.FAILED
 
-            if isinstance(exc, (ValueError, RuntimeError)):
-                review.error_message = str(exc)
-            else:
-                review.error_message = (
-                    "We couldn't complete this code review right now. "
-                    "Please try again in a moment."
+                if isinstance(exc, (ValueError, RuntimeError)):
+                    review.error_message = str(exc)
+                else:
+                    review.error_message = (
+                        "We couldn't complete this code review right now. "
+                        "Please try again in a moment."
+                    )
+
+                review.save(
+                    update_fields=[
+                        "status",
+                        "error_message",
+                    ]
                 )
 
-            review.save(
-                update_fields=[
-                    "status",
-                    "error_message",
-                ]
-            )
+                return Response(
+                    self.get_serializer(review).data,
+                    status=status.HTTP_201_CREATED,
+                )
 
             return Response(
-                self.get_serializer(review).data,
-                status=status.HTTP_201_CREATED,
+                {
+                    "error": "Failed to initiate review.",
+                    "details": str(exc),
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
     @action(detail=True, methods=["post"])
     def retry(self, request, pk=None):

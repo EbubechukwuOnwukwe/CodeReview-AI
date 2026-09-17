@@ -46,18 +46,10 @@ class CodeChunker:
     #
     # This is the CODE budget only.
     #
-    # The actual Groq request also contains:
-    #
-    # - system instructions
-    # - requirements analysis
-    # - schema instructions
-    # - JSON instructions
-    # - response tokens
-    # - reasoning tokens
-    #
-    # Therefore we should NOT use most of the 6,500 TPM
-    # budget for code alone.
-    TARGET_CODE_TOKENS = 1_500
+    # openai/gpt-oss-120b generates reasoning tokens in addition
+    # to output JSON tokens, so we keep each chunk compact
+    # to safely stay inside Groq's 8,000 TPM limit.
+    TARGET_CODE_TOKENS = 1_200
 
     TARGET_CHARS = (
         TARGET_CODE_TOKENS
