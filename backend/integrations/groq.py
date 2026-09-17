@@ -62,7 +62,7 @@ class GroqService:
     RESERVED_OUTPUT_TOKENS = int(
         os.getenv(
             "GROQ_RESERVED_OUTPUT_TOKENS",
-            "1200",
+            "800",
         )
     )
 
@@ -170,12 +170,11 @@ class GroqService:
 
                 if required_tokens <= available:
 
-                    cls._usage_window.append(
-                        {
-                            "time": time.monotonic(),
-                            "tokens": required_tokens,
-                        }
-                    )
+                    entry = {
+                        "time": time.monotonic(),
+                        "tokens": required_tokens,
+                    }
+                    cls._usage_window.append(entry)
 
                     print(
                         f"[GROQ RATE LIMITER] "
@@ -185,7 +184,7 @@ class GroqService:
                         f"{required_tokens:,} tokens"
                     )
 
-                    return
+                    return entry
 
                 if not cls._usage_window:
 
@@ -457,7 +456,7 @@ class GroqService:
                 # Reserve TPM capacity.
                 # -------------------------------------
 
-                self._wait_for_capacity(
+                usage_entry = self._wait_for_capacity(
                     estimated_tokens
                 )
 
@@ -511,6 +510,16 @@ class GroqService:
                     f"[GROQ] Usage: "
                     f"{response.usage}"
                 )
+
+                # Update our usage tracker with actual token usage instead of the conservative estimate
+                if (
+                    usage_entry
+                    and hasattr(response, "usage")
+                    and response.usage
+                    and getattr(response.usage, "total_tokens", None)
+                ):
+                    with self._usage_lock:
+                        usage_entry["tokens"] = response.usage.total_tokens
 
                 raw_text = choice.message.content
 
