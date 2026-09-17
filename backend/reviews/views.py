@@ -1,3 +1,5 @@
+import threading
+
 from agents import reviewer_agent
 from collections import Counter
 
@@ -11,6 +13,56 @@ from integrations.github import GitHubService
 from .models import Review
 from .serializers import ReviewSerializer
 
+
+# =========================================================
+# BACKGROUND RUNNER
+# =========================================================
+
+def _run_review_in_background(review_id: int):
+    """
+    Run the full review pipeline in a background thread so the HTTP
+    worker is freed immediately.  Any unhandled exception is caught
+    here and persisted as a FAILED status so the frontend can display
+    it and offer a retry.
+    """
+    try:
+        orchestrator = ReviewOrchestrator()
+        orchestrator.run(review_id)
+
+    except Exception as exc:
+        import traceback
+
+        print("\n" + "=" * 80)
+        print("BACKGROUND REVIEW FAILED")
+        print("=" * 80)
+        traceback.print_exc()
+        print("=" * 80 + "\n")
+
+        try:
+            review = Review.objects.get(pk=review_id)
+            review.status = Review.Status.FAILED
+
+            if isinstance(exc, (ValueError, RuntimeError)):
+                review.error_message = str(exc)
+            else:
+                review.error_message = (
+                    "We couldn't complete this code review right now. "
+                    "Please try again in a moment."
+                )
+
+            review.save(
+                update_fields=[
+                    "status",
+                    "error_message",
+                ]
+            )
+        except Exception:
+            pass  # Review row may not exist yet; nothing we can do.
+
+
+# =========================================================
+# VIEWSET
+# =========================================================
 
 class ReviewViewSet(viewsets.ModelViewSet):
     queryset = Review.objects.all().order_by("-created_at")
@@ -56,6 +108,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
                 language=language,
                 status=Review.Status.PENDING,
             )
+
             if repository_url:
                 github = GitHubService()
 
@@ -136,16 +189,22 @@ class ReviewViewSet(viewsets.ModelViewSet):
                         "language",
                     ]
                 )
+
             elif not review.code:
-                raise ValueError("Neither a repository URL nor source code was provided.")
+                raise ValueError(
+                    "Neither a repository URL nor source code was provided."
+                )
 
-            orchestrator = ReviewOrchestrator()
-
-            orchestrator.run(
-                review.id
-            )
-
-            review.refresh_from_db()
+            # -------------------------------------------------
+            # Kick off the analysis pipeline in the background.
+            # The HTTP worker returns immediately; the frontend
+            # polls GET /api/reviews/:id/ every 3 s for updates.
+            # -------------------------------------------------
+            threading.Thread(
+                target=_run_review_in_background,
+                args=(review.id,),
+                daemon=True,
+            ).start()
 
             return Response(
                 self.get_serializer(review).data,
@@ -194,6 +253,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
     @action(detail=True, methods=["post"])
     def retry(self, request, pk=None):
         review = self.get_object()
@@ -201,50 +261,21 @@ class ReviewViewSet(viewsets.ModelViewSet):
         review.error_message = None
         review.save(update_fields=["status", "error_message"])
 
-        try:
-            orchestrator = ReviewOrchestrator()
-            orchestrator.run(review.id)
+        # -------------------------------------------------
+        # Run in the background, same as the initial create.
+        # -------------------------------------------------
+        threading.Thread(
+            target=_run_review_in_background,
+            args=(review.id,),
+            daemon=True,
+        ).start()
 
-            review.refresh_from_db()
-            return Response(
-                self.get_serializer(review).data,
-                status=status.HTTP_200_OK,
-            )
-        except Exception as exc:
-            import traceback
+        review.refresh_from_db()
+        return Response(
+            self.get_serializer(review).data,
+            status=status.HTTP_200_OK,
+        )
 
-            print("\n" + "=" * 80)
-            print("REVIEW RETRY FAILED")
-            print("=" * 80)
-
-            traceback.print_exc()
-
-            print("=" * 80 + "\n")
-
-            review.status = Review.Status.FAILED
-
-            if isinstance(exc, (ValueError, RuntimeError)):
-                review.error_message = str(exc)
-            else:
-                review.error_message = (
-                    "We couldn't complete this code review right now. "
-                    "Please try again in a moment."
-                )
-
-            review.save(
-                update_fields=[
-                    "status",
-                    "error_message",
-                ]
-            )
-
-            return Response(
-                self.get_serializer(review).data,
-                status=status.HTTP_200_OK,
-            )
-
-
-    
     @staticmethod
     def _detect_language(extension_counts):
         if not extension_counts:
