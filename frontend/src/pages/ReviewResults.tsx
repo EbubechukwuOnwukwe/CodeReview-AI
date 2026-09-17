@@ -187,6 +187,26 @@ export const ReviewResults = () => {
         </div>
       )}
 
+      {/* Stuck Banner if Running/Pending with no background activity */}
+      {(review.status === "running" || review.status === "pending") && (
+        <div className="glass-panel p-4 rounded-2xl border border-amber-800/60 bg-amber-950/20 text-amber-200 flex items-center justify-between gap-4">
+          <div className="flex items-center space-x-2 text-sm font-semibold text-amber-300">
+            <FiAlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>Analysis running in the background. If this has been stuck for a while, you can restart it.</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleRetry}
+            disabled={isRetrying}
+            className="shrink-0 px-4 py-2 bg-amber-900/70 hover:bg-amber-800 text-white font-bold text-xs rounded-xl border border-amber-700/80 flex items-center space-x-2 transition-all disabled:opacity-50"
+          >
+            <FiRotateCw className={`w-4 h-4 ${isRetrying ? "animate-spin" : ""}`} />
+            <span>{isRetrying ? "Restarting..." : "Restart Analysis"}</span>
+          </button>
+        </div>
+      )}
+
 
       {/* CODE REVIEW Summary Header Stats (PART 20) */}
       <div className="glass-panel p-6 sm:p-8 rounded-2xl border border-indigo-900/50 shadow-2xl space-y-6">
